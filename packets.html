@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Packets Viewer</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0; 
+      padding: 20px;
+      background-color: #2b2b2b;
+      color: #fff;
+    }
+    h1 {
+      margin-bottom: 20px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background-color: #3c3c3c;
+    }
+    th, td {
+      padding: 8px;
+      border: 1px solid #555;
+    }
+    tr:hover {
+      background-color: #444;
+      cursor: pointer;
+    }
+    /* Modal styles */
+    .modal {
+      display: none; /* Hidden by default */
+      position: fixed; 
+      top: 0; 
+      left: 0;
+      width: 100%; 
+      height: 100%; 
+      background-color: rgba(0,0,0,0.5);
+      justify-content: center; 
+      align-items: center;
+    }
+    .modal-content {
+      background-color: #fff;
+      color: #000;
+      padding: 20px;
+      border-radius: 8px;
+      max-width: 600px;
+      max-height: 80%;
+      overflow-y: auto;
+    }
+    .close-btn {
+      background-color: #5c5c5c;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      float: right;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Packets Viewer</h1>
+  <div id="packets-container"></div>
+
+  <!-- Modal to show packet details -->
+  <div id="details-modal" class="modal">
+    <div class="modal-content">
+      <button class="close-btn" id="close-modal">Close</button>
+      <pre id="packet-details"></pre>
+    </div>
+  </div>
+
+  <script>
+    // 1. Parse the session_id from URL query params.
+    const urlParams = new URLSearchParams(window.location.search);
+    const sessionId = urlParams.get('session_id');
+
+    // Elements
+    const packetsContainer = document.getElementById('packets-container');
+    const detailsModal = document.getElementById('details-modal');
+    const detailsPre = document.getElementById('packet-details');
+    const closeModalBtn = document.getElementById('close-modal');
+
+    // 2. Fetch the packets for this session from the backend.
+    async function fetchPackets() {
+      try {
+        const response = await fetch(
+          `http://127.0.0.1:5004/get_session_packets?session_id=${encodeURIComponent(sessionId)}`
+        );
+        const data = await response.json();
+
+        if (data.error) {
+          packetsContainer.textContent = data.error;
+          return;
+        }
+
+        // data.packets is now an array of packet objects.
+        createPacketsTable(data.packets);
+
+      } catch (err) {
+        packetsContainer.textContent = "Error fetching packets: " + err;
+      }
+    }
+
+    // Build a table of packet summaries. Clicking a row shows details.
+    function createPacketsTable(packets) {
+      if (!packets || packets.length === 0) {
+        packetsContainer.textContent = "No packets found.";
+        return;
+      }
+
+      const table = document.createElement('table');
+      const thead = document.createElement('thead');
+      const headerRow = document.createElement('tr');
+      const summaryHeader = document.createElement('th');
+      summaryHeader.textContent = 'Packet Summary';
+      headerRow.appendChild(summaryHeader);
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+
+      const tbody = document.createElement('tbody');
+      table.appendChild(tbody);
+
+      // Iterate over the array of packet objects.
+      packets.forEach(packet => {
+        const row = document.createElement('tr');
+        const summaryCell = document.createElement('td');
+        summaryCell.textContent = packet.summary;
+        row.appendChild(summaryCell);
+
+        // On click, open modal with details.
+        row.addEventListener('click', () => {
+          detailsPre.textContent = packet.details;
+          detailsModal.style.display = 'flex';
+        });
+
+        tbody.appendChild(row);
+      });
+
+      packetsContainer.appendChild(table);
+    }
+
+    // 4. Close the details modal when the user clicks "Close".
+    closeModalBtn.addEventListener('click', () => {
+      detailsModal.style.display = 'none';
+    });
+
+    // Fetch the packets on page load.
+    fetchPackets();
+  </script>
+</body>
+</html>

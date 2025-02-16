@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mantis - Packet Sniffer</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #2b2b2b;
+      color: #fff;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .section {
+      margin-bottom: 20px;
+      padding: 15px;
+      background-color: #3c3c3c;
+      border-radius: 8px;
+    }
+    .buttons button {
+      margin-right: 10px;
+      padding: 10px 15px;
+      border: none;
+      border-radius: 4px;
+      background-color: #5c5c5c;
+      color: white;
+      cursor: pointer;
+    }
+    .captured ul {
+      list-style: none;
+      padding: 0;
+      overflow-y: auto;
+      height: 200px;
+      background-color: #1e1e1e;
+    }
+    .dictionary-list {
+      padding: 10px;
+      background-color: #1e1e1e;
+      border-radius: 8px;
+    }
+    .dictionary-list li {
+      cursor: pointer;
+      padding: 5px;
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.5);
+      justify-content: center;
+      align-items: center;
+    }
+    .modal-content {
+      background-color: white;
+      padding: 20px;
+      border-radius: 8px;
+      max-width: 500px;
+      max-height: 80%;
+      overflow-y: auto;
+      color: #000;
+    }
+    /* Style the file links */
+    .file-link {
+      display: block;
+      margin: 5px 0;
+      text-decoration: none;
+      color: blue;
+      cursor: pointer;
+    }
+    .file-link:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Mantis - Packet Sniffer</h1>
+
+    <div class="section filters">
+      <h2>Filters</h2>
+      <!-- New Interface input field -->
+      <label for="interface">Interface:</label>
+      <input type="text" id="interface" placeholder="Enter interface (e.g., lo0, eth0)" />
+
+      <label for="source-ip">Source IP:</label>
+      <input type="text" id="source-ip" placeholder="Enter source IP" />
+      
+      <label for="destination-ip">Destination IP:</label>
+      <input type="text" id="destination-ip" placeholder="Enter destination IP" />
+      
+      <label for="port">Port:</label>
+      <input type="text" id="port" placeholder="Enter port" />
+      
+      <label for="protocol">Protocol:</label>
+      <input type="text" id="protocol" placeholder="Enter protocol" />
+      
+      <label for="packet-count">Packet Count:</label>
+      <input type="number" id="packet-count" placeholder="Enter packet count" />
+      
+      <label for="filter-logic">Filter Logic:</label>
+      <select id="filter-logic">
+        <option value="AND">AND</option>
+        <option value="OR">OR</option>
+      </select>
+    </div>
+
+    <div class="section buttons">
+      <button id="start-sniffing">Start Sniffing</button>
+      <button id="stop-sniffing">Stop Sniffing</button>
+      <button id="save-session" disabled>Save Session</button>
+      <button id="refresh-dictionary">Refresh Dictionary</button>
+    </div>
+
+    <div class="section captured">
+      <h2>Captured Packets</h2>
+      <ul id="captured-list"></ul>
+    </div>
+
+    <div class="section dictionary-list">
+      <h2>Dictionary</h2>
+      <ul id="dictionary-list"></ul>
+    </div>
+  </div>
+
+  <!-- Modal for session details -->
+  <div id="session-modal" class="modal">
+    <div class="modal-content">
+      <h3>Session Details</h3>
+      <div id="session-files"></div>
+      <button id="show-packets" class="buttons">Show Packets</button>
+      <button id="close-modal" class="buttons">Close</button>
+    </div>
+  </div>
+
+  <script>
+    const startButton = document.getElementById('start-sniffing');
+    const stopButton = document.getElementById('stop-sniffing');
+    const saveButton = document.getElementById('save-session');
+    const refreshButton = document.getElementById('refresh-dictionary');
+    const capturedList = document.getElementById('captured-list');
+    const dictionaryList = document.getElementById('dictionary-list');
+    let sniffingActive = false;
+
+    startButton.addEventListener('click', async () => {
+      // Gather filter settings including the network interface
+      const filters = {
+        interface: document.getElementById('interface').value,
+        ip_src: document.getElementById('source-ip').value,
+        ip_dst: document.getElementById('destination-ip').value,
+        port: document.getElementById('port').value,
+        protocol: document.getElementById('protocol').value,
+        packet_count: document.getElementById('packet-count').value,
+        logic: document.getElementById('filter-logic').value
+      };
+
+      const response = await fetch('http://127.0.0.1:5004/start_sniffing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(filters)
+      });
+      if (response.ok) {
+        sniffingActive = true;
+        saveButton.disabled = true;
+        alert('Sniffing started!');
+      } else {
+        alert('Failed to start sniffing.');
+      }
+    });
+
+    stopButton.addEventListener('click', async () => {
+      const response = await fetch('http://127.0.0.1:5004/stop_sniffing', { method: 'POST' });
+      if (response.ok) {
+        sniffingActive = false;
+        saveButton.disabled = false;
+        alert('Sniffing stopped!');
+      } else {
+        alert('Failed to stop sniffing.');
+      }
+    });
+
+    saveButton.addEventListener('click', () => {
+      if (!sniffingActive) {
+        const fileName = prompt('Enter a file name for the session:');
+        if (fileName) {
+          fetch('http://127.0.0.1:5004/save_session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ file_name: fileName })
+          }).then(response => {
+            if (response.ok) {
+              alert('Session saved!');
+            } else {
+              alert('Failed to save session.');
+            }
+          });
+        }
+      }
+    });
+
+    refreshButton.addEventListener('click', async () => {
+      const response = await fetch('http://127.0.0.1:5004/get_sessions');
+      if (response.ok) {
+        const sessions = await response.json();
+        dictionaryList.innerHTML = ''; // Clear the existing dictionary
+        sessions.forEach(session => {
+          const li = document.createElement('li');
+          li.textContent = session.session_id;
+          li.addEventListener('click', () => {
+            openSessionModal(session);
+          });
+          dictionaryList.appendChild(li);
+        });
+      } else {
+        alert('Failed to fetch sessions.');
+      }
+    });
+
+    async function openSessionModal(session) {
+      const modal = document.getElementById('session-modal');
+      modal.style.display = 'flex';
+
+      // Fetch files for the selected session.
+      const response = await fetch(`http://127.0.0.1:5004/get_session_files?session_id=${encodeURIComponent(session.session_id)}`);
+      const data = await response.json();
+      const filesContainer = document.getElementById('session-files');
+      filesContainer.innerHTML = ''; // Clear previous files
+
+      if (data.error) {
+        const errorMessage = document.createElement('div');
+        errorMessage.textContent = data.error;
+        filesContainer.appendChild(errorMessage);
+      } else if (data.files) {
+        // data.files is an object where each key is a filename, and each value has { filename, path }.
+        Object.entries(data.files).forEach(([key, fileInfo]) => {
+          // If you want to open files from a local "reassembled_files" folder,
+          // we rely on the *filename* that physically exists in that folder.
+          // Then create a relative link to that folder.
+
+          // Encode special characters in the filename:
+          const encodedFilename = encodeURIComponent(fileInfo.filename);
+
+          // Create an anchor element for each file.
+          const link = document.createElement('a');
+          link.href = `./reassembled_files/${encodedFilename}`; // Relative path
+          link.textContent = fileInfo.filename;
+          link.className = 'file-link';
+          link.target = '_blank'; // Open in a new tab
+
+          filesContainer.appendChild(link);
+        });
+      } else {
+        const noFiles = document.createElement('div');
+        noFiles.textContent = "No files found for this session.";
+        filesContainer.appendChild(noFiles);
+      }
+
+      // Configure the "Show Packets" button (if needed).
+      const showPacketsButton = document.getElementById('show-packets');
+      //was
+      // showPacketsButton.onclick = async () => {
+      //   const packetsResponse = await fetch(`http://127.0.0.1:5004/get_session_packets?session_id=${encodeURIComponent(session.session_id)}`);
+      //   const packetsData = await packetsResponse.json();
+      //   alert('Packets for this session: \n' + packetsData.packets.join('\n'));
+      // };
+      showPacketsButton.onclick = async () => {
+        // Instead of fetching and showing packets in an alert,
+        // we open a new page (e.g. packets.html) with the session ID as a query param.
+        const packetsPageUrl = `packets.html?session_id=${encodeURIComponent(session.session_id)}`;
+        window.open(packetsPageUrl, '_blank');
+      };
+    }
+
+    document.getElementById('close-modal').addEventListener('click', () => {
+      document.getElementById('session-modal').style.display = 'none';
+    });
+  </script>
+</body>
+</html>
