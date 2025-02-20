@@ -1,17 +1,42 @@
-from flask import Flask, request, jsonify, Response
-from flask_socketio import SocketIO, emit
+from flask import Flask, request, jsonify
 from flask_cors import CORS
 from scapy.layers.l2 import PacketList
 from Sniffer import start_sniffing, stop_sniffing
 from Filters import build_filters
 from threading import Thread
-import queue
 import logging
 import os
-import json
-import time
 from Utils import save_packets_to_file, files_extractor
 from Loopbackdict import CustomPacketList
+from Sniffer import apply_tc_limit, remove_tc_limit
+
+# might not be needed:
+# def is_admin():
+#     """Check if the script is running with admin privileges."""
+#     try:
+#         return ctypes.windll.shell32.IsUserAnAdmin()
+#     except:
+#         return False
+
+# def restart_as_admin():
+#     """Restart the script with admin privileges if it's not already running as admin."""
+#     if not is_admin():
+#         print("Restarting with Administrator privileges...")
+#         try:
+#             # Relaunch the script with admin rights
+#             script_path = sys.argv[0]  # Get the current script path
+#             command = f'powershell -Command "Start-Process python \'{script_path}\' -Verb RunAs"'
+#             subprocess.run(command, shell=True, check=True)
+#             sys.exit()  # Close the current instance
+#         except Exception as e:
+#             print(f"⚠️ Failed to restart as Admin: {e}")
+#             sys.exit(1)
+
+# # Check and restart as Admin if needed
+# restart_as_admin()
+
+# print("Running as Administrator. Continuing execution...")
+
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "http://localhost:8000"}})
@@ -20,6 +45,45 @@ captured_packets = CustomPacketList()
 sniff_thread = None
 sniffing_active = False
 loopback_flag=False
+
+
+@app.route('/set_qos', methods=['POST'])
+def set_qos():
+    """Sets QoS bandwidth limit for a specific port."""
+    data = request.get_json()
+    interface = data.get('interface-qos', data.get('interface', None))
+    port = int(data.get('qos_port', 0))
+    bandwidth_kbps = int(data.get('bandwidth', 0))
+    print("zobor interface is: ", interface )
+
+    if port <= 0 or bandwidth_kbps <= 0 or not interface:
+        return jsonify({"error": "Invalid port, bandwidth, or interface value"}), 400
+
+    success = apply_tc_limit(interface, port, bandwidth_kbps)
+
+    if success:
+        return jsonify({"message": f"QoS applied: {bandwidth_kbps} Kbps on port {port} via {interface}"}), 200
+    else:
+        return jsonify({"error": "Failed to apply QoS"}), 500
+
+
+@app.route('/remove_qos', methods=['POST'])
+def remove_qos():
+    """Removes QoS bandwidth limit for a specific port."""
+    data = request.get_json()
+    interface = data.get('interface-qos', data.get('interface', None))
+    port = int(data.get('qos_port', 0))
+
+    if port <= 0 or not interface:
+        return jsonify({"error": "Invalid port or interface value"}), 400
+
+    success = remove_tc_limit(interface, port)
+
+    if success:
+        return jsonify({"message": f"QoS removed for port {port} via {interface}"}), 200
+    else:
+        return jsonify({"error": "Failed to remove QoS"}), 500
+
 
 @app.route('/start_sniffing', methods=['POST'])
 def start_sniffing_endpoint():
@@ -36,6 +100,10 @@ def start_sniffing_endpoint():
     logic = data.get('logic', 'AND')
     packet_count = int(data.get('packet_count') or 0)
     interface_to_be_used=data.get('interface')
+    if ip_src == "127.0.0.1" or ip_dst == "127.0.0.1":
+        interface_to_be_used = "lo"
+    if not interface_to_be_used:
+        interface_to_be_used= None
     filters = build_filters(ip_src, ip_dst, port, protocol, logic)
 
     if interface_to_be_used=='lo0':

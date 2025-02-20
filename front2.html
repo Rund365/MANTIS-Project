@@ -31,13 +31,13 @@
       color: white;
       cursor: pointer;
     }
-    .captured ul {
+    /* .captured ul {
       list-style: none;
       padding: 0;
       overflow-y: auto;
       height: 200px;
       background-color: #1e1e1e;
-    }
+    } */
     .dictionary-list {
       padding: 10px;
       background-color: #1e1e1e;
@@ -65,18 +65,66 @@
       max-width: 500px;
       max-height: 80%;
       overflow-y: auto;
-      color: #000;
     }
-    /* Style the file links */
-    .file-link {
-      display: block;
-      margin: 5px 0;
-      text-decoration: none;
-      color: blue;
+    .filter-row {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 15px;
+      width: 100%;
+    }
+    .filter-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 1;
+    }
+    .filter-group label {
+      min-width: 100px;
+      white-space: nowrap;
+    }
+    .filter-group input,
+    .filter-group select {
+      width: 100%;
+      padding: 8px;
+      border-radius: 4px;
+      border: 1px solid #666;
+      background-color: #333;
+      color: white;
+      box-sizing: border-box;
+    }
+    /* Specific adjustments for different rows */
+    .filter-row:nth-child(1) .filter-group {
+      flex: 1;  /* Makes Source IP and Destination IP take equal space */
+    }
+    .filter-row:nth-child(2) .filter-group {
+      flex: 2;  /* Makes Interface input take more space */
+    }
+    .filter-row:nth-child(3) {
+      display: grid;
+      grid-template-columns: 100px 200px 100px 200px 120px 1fr;
+      gap: 10px;
+      align-items: center;
+    }
+    .filter-row:nth-child(3) .filter-group {
+      display: contents;
+    }
+    .filter-row:nth-child(3) input {
+      width: 100%;
+      padding: 8px;
+      border-radius: 4px;
+      border: 1px solid #666;
+      background-color: #333;
+      color: white;
+      box-sizing: border-box;
+    }
+    /* Placeholder color */
+    .filters input::placeholder {
+      color: #999;
+    }
+    /* Dropdown styling */
+    .filter-group select {
+      width: 100%;
       cursor: pointer;
-    }
-    .file-link:hover {
-      text-decoration: underline;
     }
   </style>
 </head>
@@ -86,30 +134,70 @@
 
     <div class="section filters">
       <h2>Filters</h2>
-      <!-- New Interface input field -->
-      <label for="interface">Interface:</label>
-      <input type="text" id="interface" placeholder="Enter interface (e.g., lo0, eth0)" />
+      <div class="filter-row">
+        <div class="filter-group">
+          <label for="source-ip">Source IP:</label>
+          <input type="text" id="source-ip" placeholder="Enter source IP" />
+        </div>
+        <div class="filter-group">
+          <label for="destination-ip">Destination IP:</label>
+          <input type="text" id="destination-ip" placeholder="Enter destination IP" />
+        </div>
+      </div>
+      
+      <div class="filter-row">
+        <div class="filter-group">
+          <label for="interface">Interface:</label>
+          <input type="text" id="interface" placeholder="Enter interface (e.g., lo0, eth0)" />
+        </div>
+      </div>
+      
+      <div class="filter-row">
+        <div class="filter-group">
+          <label for="port">Port:</label>
+          <input type="text" id="port" placeholder="Enter port" />
+        </div>
+        <div class="filter-group">
+          <label for="protocol">Protocol:</label>
+          <input type="text" id="protocol" placeholder="Enter protocol" />
+        </div>
+        <div class="filter-group">
+          <label for="packet-count">Packet Count:</label>
+          <input type="number" id="packet-count" placeholder="Enter Packet count" />
+        </div>
+      </div>
+      
+      <div class="filter-row">
+        <div class="filter-group">
+          <label for="filter-logic">Filter Logic:</label>
+          <select id="filter-logic">
+            <option value="AND">AND</option>
+            <option value="OR">OR</option>
+          </select>
+        </div>
+      </div>
+    </div>
 
-      <label for="source-ip">Source IP:</label>
-      <input type="text" id="source-ip" placeholder="Enter source IP" />
-      
-      <label for="destination-ip">Destination IP:</label>
-      <input type="text" id="destination-ip" placeholder="Enter destination IP" />
-      
-      <label for="port">Port:</label>
-      <input type="text" id="port" placeholder="Enter port" />
-      
-      <label for="protocol">Protocol:</label>
-      <input type="text" id="protocol" placeholder="Enter protocol" />
-      
-      <label for="packet-count">Packet Count:</label>
-      <input type="number" id="packet-count" placeholder="Enter packet count" />
-      
-      <label for="filter-logic">Filter Logic:</label>
-      <select id="filter-logic">
-        <option value="AND">AND</option>
-        <option value="OR">OR</option>
-      </select>
+    <div class="section bandwidth-control">
+      <h2>Bandwidth Control</h2>
+      <label for="qos-port">Port: </label>
+      <input type="number" id="qos-port" min="1" placeholder="Enter port number">
+      <label for="bandwidth">Bandwidth (Kbps): </label>
+      <input type="number" id="bandwidth" min="1" placeholder="Enter Kbps">
+      <button id="set-bandwidth">Apply Limit</button>
+      <button id="remove-bandwidth">Remove Limit</button>
+      <div class="qos-controls">
+        <label for="interface-qos">Select Interface:</label>
+        <select id="interface-qos">
+            <option value="lo">Loopback (lo)</option>
+            <option value="eth0">Ethernet (eth0)</option>
+            <option value="wlan0">WiFi (wlan0)</option>
+            <option value="ens33">VMware (ens33)</option>
+            <option value="custom">Custom</option>
+        </select>
+        <input type="text" id="custom-interface-qos" placeholder="Enter interface" style="display:none;">
+    </div>
+    
     </div>
 
     <div class="section buttons">
@@ -119,13 +207,8 @@
       <button id="refresh-dictionary">Refresh Dictionary</button>
     </div>
 
-    <div class="section captured">
-      <h2>Captured Packets</h2>
-      <ul id="captured-list"></ul>
-    </div>
-
     <div class="section dictionary-list">
-      <h2>Dictionary</h2>
+      <h2>Captured Sessions</h2>
       <ul id="dictionary-list"></ul>
     </div>
   </div>
@@ -145,8 +228,8 @@
     const stopButton = document.getElementById('stop-sniffing');
     const saveButton = document.getElementById('save-session');
     const refreshButton = document.getElementById('refresh-dictionary');
-    const capturedList = document.getElementById('captured-list');
     const dictionaryList = document.getElementById('dictionary-list');
+    let eventSource = null;
     let sniffingActive = false;
 
     startButton.addEventListener('click', async () => {
@@ -227,60 +310,137 @@
       const modal = document.getElementById('session-modal');
       modal.style.display = 'flex';
 
-      // Fetch files for the selected session.
-      const response = await fetch(`http://127.0.0.1:5004/get_session_files?session_id=${encodeURIComponent(session.session_id)}`);
+      const response = await fetch(`http://127.0.0.1:5004/get_session_files?session_id=${session.session_id}`);
       const data = await response.json();
       const filesContainer = document.getElementById('session-files');
       filesContainer.innerHTML = ''; // Clear previous files
 
-      if (data.error) {
-        const errorMessage = document.createElement('div');
-        errorMessage.textContent = data.error;
-        filesContainer.appendChild(errorMessage);
-      } else if (data.files) {
-        // data.files is an object where each key is a filename, and each value has { filename, path }.
-        Object.entries(data.files).forEach(([key, fileInfo]) => {
-          // If you want to open files from a local "reassembled_files" folder,
-          // we rely on the *filename* that physically exists in that folder.
-          // Then create a relative link to that folder.
-
-          // Encode special characters in the filename:
-          const encodedFilename = encodeURIComponent(fileInfo.filename);
-
-          // Create an anchor element for each file.
-          const link = document.createElement('a');
-          link.href = `./reassembled_files/${encodedFilename}`; // Relative path
-          link.textContent = fileInfo.filename;
-          link.className = 'file-link';
-          link.target = '_blank'; // Open in a new tab
-
-          filesContainer.appendChild(link);
+      if (data.status === 'success') {
+        data.files.forEach(file => {
+          const fileDiv = document.createElement('div');
+          fileDiv.textContent = file; // File name or path
+          filesContainer.appendChild(fileDiv);
         });
       } else {
-        const noFiles = document.createElement('div');
-        noFiles.textContent = "No files found for this session.";
-        filesContainer.appendChild(noFiles);
+        const errorMessage = document.createElement('div');
+        errorMessage.textContent = data.message;
+        filesContainer.appendChild(errorMessage);
       }
 
-      // Configure the "Show Packets" button (if needed).
       const showPacketsButton = document.getElementById('show-packets');
-      //was
-      // showPacketsButton.onclick = async () => {
-      //   const packetsResponse = await fetch(`http://127.0.0.1:5004/get_session_packets?session_id=${encodeURIComponent(session.session_id)}`);
-      //   const packetsData = await packetsResponse.json();
-      //   alert('Packets for this session: \n' + packetsData.packets.join('\n'));
-      // };
       showPacketsButton.onclick = async () => {
-        // Instead of fetching and showing packets in an alert,
-        // we open a new page (e.g. packets.html) with the session ID as a query param.
-        const packetsPageUrl = `packets.html?session_id=${encodeURIComponent(session.session_id)}`;
-        window.open(packetsPageUrl, '_blank');
+        // Open packets.html in a new window, passing the session_id as a URL parameter
+        window.open(`packets.html?session_id=${session.session_id}`, '_blank');
       };
     }
 
     document.getElementById('close-modal').addEventListener('click', () => {
       document.getElementById('session-modal').style.display = 'none';
     });
+
+    document.getElementById('set-bandwidth').addEventListener('click', async () => {
+    let selectedInterface = getSelectedQoSInterface(); 
+    console.log("🚀 Selected Interface for QoS:", selectedInterface);  
+
+    const port = document.getElementById('qos-port').value;
+    const bandwidth = document.getElementById('bandwidth').value;
+
+    if (!port || !bandwidth || bandwidth <= 0) {
+        alert('Please enter a valid port and bandwidth (Kbps)!');
+        return;
+    }
+
+    try {
+        const response = await fetch('http://127.0.0.1:5004/set_qos', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                qos_port: parseInt(port),
+                bandwidth: parseInt(bandwidth),
+                "interface-qos": selectedInterface 
+            })
+        });
+
+        const result = await response.json();
+        alert(result.message || result.error);
+    } catch (error) {
+        console.error('Error setting QoS:', error);
+        alert('Failed to apply QoS');
+    }
+});
+
+document.getElementById('remove-bandwidth').addEventListener('click', async () => {
+    let selectedInterface = getSelectedQoSInterface();  // ✅ Call it correctly
+
+    const port = document.getElementById('qos-port').value;
+
+    if (!port) {
+        alert('Please enter a port number to remove QoS!');
+        return;
+    }
+
+    try {
+        const response = await fetch('http://127.0.0.1:5004/remove_qos', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                qos_port: parseInt(port),
+                "interface-qos": selectedInterface
+            })
+        });
+
+        const result = await response.json();
+        alert(result.message || result.error);
+    } catch (error) {
+        console.error('Error removing QoS:', error);
+        alert('Failed to remove QoS');
+    }
+});
+
+
+
+    document.getElementById('interface-qos').addEventListener('change', function() {
+        let customInput = document.getElementById('custom-interface-qos');
+        if (this.value === 'custom') {
+            customInput.style.display = 'block';
+        } else {
+            customInput.style.display = 'none';
+            customInput.value = '';  // Clear custom input when not used
+        }
+    });
+
+    function getSelectedQoSInterface() {
+    let dropdown = document.getElementById('interface-qos');
+    let customInput = document.getElementById('custom-interface-qos'); 
+
+    if (!dropdown) {
+        console.error("❌ ERROR: The dropdown with ID 'interface-qos' was not found!");
+        return "undefined-interface";
+    }
+
+    let selectedInterface = dropdown.value;
+    let customInterface = customInput ? customInput.value.trim() : "";
+
+    console.log("🔍 Dropdown Value:", selectedInterface);
+    console.log("🔍 Custom Input Value:", customInterface);
+
+
+    if (selectedInterface === "custom") {
+        if (customInterface) {
+            return customInterface;
+        } else {
+            console.error("❌ ERROR: 'Custom' interface selected, but no value entered!");
+            return "invalid-custom-interface";
+        }
+    } else if (selectedInterface) {
+        return selectedInterface; 
+    } else {
+        console.error("❌ ERROR: No valid interface selected!");
+        return "undefined-interface"; 
+    }
+}
+
+
   </script>
 </body>
 </html>
